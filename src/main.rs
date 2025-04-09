@@ -2,7 +2,7 @@ use std::fs::{self, File};
 use std::io::{Read, Write};
 use std::path::PathBuf;
 use std::process;
-use std::time::{Duration, SystemTime};
+use std::time::Duration;
 
 use chrono::{DateTime, Local};
 use clap::{Parser, Subcommand};
@@ -77,10 +77,10 @@ impl ClipboardHistory {
             content,
             timestamp: Local::now(),
         };
-        
+
         // Insert at the beginning for reverse chronological order
         self.items.insert(0, item);
-        
+
         // Limit history to 100 items
         if self.items.len() > 100 {
             self.items.truncate(100);
@@ -110,23 +110,24 @@ impl ClipboardHistory {
 }
 
 fn get_history_path() -> PathBuf {
-    let proj_dirs = ProjectDirs::from("com", "cacheclip", "cacheclip")
-        .expect("Could not find home directory");
-    
+    let proj_dirs =
+        ProjectDirs::from("com", "cacheclip", "cacheclip").expect("Could not find home directory");
+
     let data_dir = proj_dirs.data_dir();
     fs::create_dir_all(data_dir).expect("Could not create data directory");
-    
+
     data_dir.join("history.json")
 }
 
 fn load_history() -> ClipboardHistory {
     let path = get_history_path();
-    
+
     if path.exists() {
         let mut file = File::open(&path).expect("Could not open history file");
         let mut contents = String::new();
-        file.read_to_string(&mut contents).expect("Could not read history file");
-        
+        file.read_to_string(&mut contents)
+            .expect("Could not read history file");
+
         match serde_json::from_str(&contents) {
             Ok(history) => history,
             Err(_) => {
@@ -142,9 +143,10 @@ fn load_history() -> ClipboardHistory {
 fn save_history(history: &ClipboardHistory) {
     let path = get_history_path();
     let content = serde_json::to_string_pretty(history).expect("Could not serialize history");
-    
+
     let mut file = File::create(&path).expect("Could not create history file");
-    file.write_all(content.as_bytes()).expect("Could not write history");
+    file.write_all(content.as_bytes())
+        .expect("Could not write history");
 }
 
 fn format_item(index: usize, item: &ClipboardItem) -> String {
@@ -154,17 +156,18 @@ fn format_item(index: usize, item: &ClipboardItem) -> String {
     } else {
         item.content.clone()
     };
-    
+
     format!("[{}] {} | {}", index, timestamp, content.replace('\n', " "))
 }
 
 fn run_daemon() {
-    let mut ctx: ClipboardContext = ClipboardProvider::new().expect("Could not initialize clipboard");
+    let mut ctx: ClipboardContext =
+        ClipboardProvider::new().expect("Could not initialize clipboard");
     let mut last_content = String::new();
     let mut history = load_history();
-    
+
     println!("CacheClip daemon started. Press Ctrl+C to stop.");
-    
+
     loop {
         if let Ok(content) = ctx.get_contents() {
             if !content.is_empty() && content != last_content {
@@ -173,7 +176,7 @@ fn run_daemon() {
                 last_content = content;
             }
         }
-        
+
         // Sleep to reduce CPU usage
         std::thread::sleep(Duration::from_millis(500));
     }
@@ -181,58 +184,59 @@ fn run_daemon() {
 
 fn main() {
     let cli = Cli::parse();
-    
+
     match cli.command {
         Some(Commands::List { count }) => {
             let history = load_history();
             let display_count = count.min(history.items.len());
-            
+
             if history.items.is_empty() {
                 println!("Clipboard history is empty.");
                 return;
             }
-            
+
             println!("Recent clipboard items:");
             for i in 0..display_count {
                 println!("{}", format_item(i, &history.items[i]));
             }
-        },
+        }
         Some(Commands::Search { query }) => {
             let history = load_history();
             let results = history.search(&query);
-            
+
             if results.is_empty() {
                 println!("No matching items found.");
                 return;
             }
-            
+
             println!("Search results for '{}':", query);
             for (i, item) in results {
                 println!("{}", format_item(i, item));
             }
-        },
+        }
         Some(Commands::Restore { index }) => {
             let history = load_history();
-            
+
             if let Some(item) = history.get_item(index) {
-                let mut ctx: ClipboardContext = ClipboardProvider::new()
-                    .expect("Could not initialize clipboard");
-                ctx.set_contents(item.content.clone()).expect("Could not set clipboard contents");
+                let mut ctx: ClipboardContext =
+                    ClipboardProvider::new().expect("Could not initialize clipboard");
+                ctx.set_contents(item.content.clone())
+                    .expect("Could not set clipboard contents");
                 println!("Restored item [{}] to clipboard", index);
             } else {
                 eprintln!("Item with index {} not found", index);
                 process::exit(1);
             }
-        },
+        }
         Some(Commands::Clear) => {
             let mut history = load_history();
             history.clear();
             save_history(&history);
             println!("Clipboard history cleared.");
-        },
+        }
         Some(Commands::Daemon) => {
             run_daemon();
-        },
+        }
         None => {
             println!("No command specified. Use --help for more information.");
         }

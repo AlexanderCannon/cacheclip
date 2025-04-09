@@ -7,7 +7,7 @@ description = "A clipboard history manager that runs in the terminal"
 
 
 [dependencies]
-chrono = "0.4.40"
+chrono = { version = "0.4.40", features = ["serde"] }
 clap = { version = "4.5.35", features = ["derive"] }
 clipboard = "0.5.0"
 directories = "6.0.0"
