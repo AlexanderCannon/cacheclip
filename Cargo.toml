@@ -1,0 +1,16 @@
+[package]
+name = "cacheclip"
+version = "0.1.0"
+edition = "2024"
+authors = ["Alexander Cannon <alexander.cannon@farpointlabs.com>"]
+description = "A clipboard history manager that runs in the terminal"
+
+
+[dependencies]
+chrono = "0.4.40"
+clap = { version = "4.5.35", features = ["derive"] }
+clipboard = "0.5.0"
+directories = "6.0.0"
+fuzzy-matcher = "0.3.7"
+serde = { version = "1.0.219", features = ["derive"] }
+serde_json = "1.0.140"
