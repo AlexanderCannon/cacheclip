@@ -3,7 +3,7 @@ name: Release
 on:
   push:
     tags:
-      - 'v*'
+      - "v*"
 
 permissions:
   contents: write
@@ -21,33 +21,33 @@ jobs:
             artifact_name: cacheclip
             asset_name: cacheclip-${{ github.ref_name }}-x86_64-linux.tar.gz
             cross: false
-            
+
           - os: ubuntu-latest
             target: aarch64-unknown-linux-gnu
             artifact_name: cacheclip
             asset_name: cacheclip-${{ github.ref_name }}-arm64-linux.tar.gz
             cross: true
-          
+
           # macOS builds
           - os: macos-latest
             target: x86_64-apple-darwin
             artifact_name: cacheclip
             asset_name: cacheclip-${{ github.ref_name }}-x86_64-macos.tar.gz
             cross: false
-            
+
           - os: macos-latest
             target: aarch64-apple-darwin
             artifact_name: cacheclip
             asset_name: cacheclip-${{ github.ref_name }}-arm64-macos.tar.gz
             cross: false
-          
+
           # Windows builds
           - os: windows-latest
             target: x86_64-pc-windows-msvc
             artifact_name: cacheclip.exe
             asset_name: cacheclip-${{ github.ref_name }}-x86_64-windows.zip
             cross: false
-            
+
           - os: windows-latest
             target: aarch64-pc-windows-msvc
             artifact_name: cacheclip.exe
@@ -56,14 +56,14 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
-      
+
       - name: Setup Rust
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
           target: ${{ matrix.target }}
           override: true
-      
+
       - name: Install dependencies (Linux)
         if: matrix.os == 'ubuntu-latest'
         run: |
@@ -80,23 +80,38 @@ jobs:
             sudo apt-get install -y gcc-aarch64-linux-gnu
           fi
 
+      - name: Setup cross-compilation environment
+        if: matrix.cross
+        run: |
+          # Create a custom Dockerfile for cross-compilation
+          cat > Dockerfile.cross << 'EOF'
+          FROM ghcr.io/cross-rs/aarch64-unknown-linux-gnu:latest
+          RUN apt-get update && apt-get install -y python3 python3-pip
+          EOF
+
+          # Build the custom image
+          docker build -t custom-cross -f Dockerfile.cross .
+
+          # Set environment variable to use our custom image
+          echo "CROSS_DOCKER_IMAGE=custom-cross" >> $GITHUB_ENV
+
       - name: Build with cargo
         uses: actions-rs/cargo@v1
         with:
           command: build
           args: --release --target ${{ matrix.target }}
           use-cross: ${{ matrix.cross }}
-      
+
       - name: Create archive (Linux/macOS)
         if: matrix.os != 'windows-latest'
         run: |
           tar -C target/${{ matrix.target }}/release -czf ${{ matrix.asset_name }} ${{ matrix.artifact_name }}
-      
+
       - name: Create archive (Windows)
         if: matrix.os == 'windows-latest'
         run: |
           Compress-Archive -Path target/${{ matrix.target }}/release/${{ matrix.artifact_name }} -DestinationPath ${{ matrix.asset_name }}
-      
+
       - name: Upload Release Asset
         uses: softprops/action-gh-release@v1
         with:
