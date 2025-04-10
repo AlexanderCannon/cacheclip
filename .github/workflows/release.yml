@@ -84,22 +84,65 @@ jobs:
           cat > Dockerfile.cross << 'EOF'
           FROM rust:latest
 
-          # Install cross-compilation tools
+          # Install cross-compilation tools and Python
           RUN apt-get update && apt-get install -y \
               gcc-aarch64-linux-gnu \
+              g++-aarch64-linux-gnu \
               libxcb1-dev \
               libxcb-render0-dev \
               libxcb-shape0-dev \
               libxcb-xfixes0-dev \
               libx11-dev \
-              python3 \
-              python3-pip
+              wget \
+              build-essential \
+              zlib1g-dev \
+              libncurses5-dev \
+              libgdbm-dev \
+              libnss3-dev \
+              libssl-dev \
+              libreadline-dev \
+              libffi-dev \
+              libsqlite3-dev \
+              pkg-config \
+              libxcb1-dev \
+              libxcb-render0-dev \
+              libxcb-shape0-dev \
+              libxcb-xfixes0-dev \
+              libx11-dev \
+              libxcb-dev \
+              libxcb-render-dev \
+              libxcb-shape-dev \
+              libxcb-xfixes-dev \
+              libx11-dev \
+              libxcb1-dev:arm64 \
+              libxcb-render0-dev:arm64 \
+              libxcb-shape0-dev:arm64 \
+              libxcb-xfixes0-dev:arm64 \
+              libx11-dev:arm64
+
+          # Install Python 3.9 from source
+          RUN cd /tmp && \
+              wget https://www.python.org/ftp/python/3.9.18/Python-3.9.18.tgz && \
+              tar -xf Python-3.9.18.tgz && \
+              cd Python-3.9.18 && \
+              ./configure --enable-optimizations && \
+              make -j $(nproc) && \
+              make install && \
+              cd .. && \
+              rm -rf Python-3.9.18 Python-3.9.18.tgz
+
+          # Verify Python installation
+          RUN python3 --version && \
+              which python3
 
           # Set up cross-compilation environment
           ENV CC_aarch64_unknown_linux_gnu=aarch64-linux-gnu-gcc
           ENV CXX_aarch64_unknown_linux_gnu=aarch64-linux-gnu-g++
           ENV AR_aarch64_unknown_linux_gnu=aarch64-linux-gnu-ar
           ENV CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc
+          ENV PKG_CONFIG_ALLOW_CROSS=1
+          ENV PKG_CONFIG_ALLOW_CROSS_AARCH64_UNKNOWN_LINUX_GNU=1
+          ENV PKG_CONFIG_PATH_aarch64_unknown_linux_gnu=/usr/lib/aarch64-linux-gnu/pkgconfig
 
           # Add the target
           RUN rustup target add aarch64-unknown-linux-gnu
