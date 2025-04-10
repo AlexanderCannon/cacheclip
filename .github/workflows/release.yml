@@ -83,17 +83,11 @@ jobs:
       - name: Setup cross-compilation environment
         if: matrix.cross
         run: |
-          # Create a custom Dockerfile for cross-compilation
-          cat > Dockerfile.cross << 'EOF'
-          FROM ghcr.io/cross-rs/aarch64-unknown-linux-gnu:latest
-          RUN apt-get update && apt-get install -y python3 python3-pip
-          EOF
-
-          # Build the custom image
-          docker build -t custom-cross -f Dockerfile.cross .
-
-          # Set environment variable to use our custom image
-          echo "CROSS_DOCKER_IMAGE=custom-cross" >> $GITHUB_ENV
+          # Use a pre-built image that includes Python 3
+          echo "CROSS_DOCKER_IMAGE=ghcr.io/cross-rs/aarch64-unknown-linux-gnu:latest" >> $GITHUB_ENV
+          
+          # Install Python 3 in the container before building
+          echo "CROSS_PRE_BUILD=apt-get update && apt-get install -y python3 python3-pip" >> $GITHUB_ENV
 
       - name: Build with cargo
         uses: actions-rs/cargo@v1
