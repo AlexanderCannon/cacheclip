@@ -80,12 +80,16 @@ jobs:
       - name: Build with Docker (aarch64 Linux)
         if: matrix.os == 'ubuntu-latest' && matrix.cross == true
         run: |
+          # Create target directory
+          mkdir -p target/aarch64-unknown-linux-gnu/release
+
           # Create a Dockerfile for cross-compilation
           cat > Dockerfile.cross << 'EOF'
           FROM rust:latest
 
-          # Install cross-compilation tools and Python
-          RUN apt-get update && apt-get install -y \
+          # Add ARM64 architecture support and install cross-compilation tools and Python
+          RUN dpkg --add-architecture arm64 && \
+              apt-get update && apt-get install -y \
               gcc-aarch64-linux-gnu \
               g++-aarch64-linux-gnu \
               libxcb1-dev \
@@ -104,16 +108,6 @@ jobs:
               libffi-dev \
               libsqlite3-dev \
               pkg-config \
-              libxcb1-dev \
-              libxcb-render0-dev \
-              libxcb-shape0-dev \
-              libxcb-xfixes0-dev \
-              libx11-dev \
-              libxcb-dev \
-              libxcb-render-dev \
-              libxcb-shape-dev \
-              libxcb-xfixes-dev \
-              libx11-dev \
               libxcb1-dev:arm64 \
               libxcb-render0-dev:arm64 \
               libxcb-shape0-dev:arm64 \
