@@ -65,7 +65,7 @@ jobs:
           override: true
 
       - name: Install dependencies (Linux)
-        if: matrix.os == 'ubuntu-latest'
+        if: matrix.os == 'ubuntu-latest' && matrix.cross == false
         run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -76,25 +76,60 @@ jobs:
             libx11-dev \
             python3 \
             python3-pip
-          if [ "${{ matrix.cross }}" = "true" ]; then
-            sudo apt-get install -y gcc-aarch64-linux-gnu
-          fi
 
-      - name: Setup cross-compilation environment
-        if: matrix.cross
+      - name: Build with Docker (aarch64 Linux)
+        if: matrix.os == 'ubuntu-latest' && matrix.cross == true
         run: |
-          # Use a pre-built image that includes Python 3
-          echo "CROSS_DOCKER_IMAGE=ghcr.io/cross-rs/aarch64-unknown-linux-gnu:latest" >> $GITHUB_ENV
-          
-          # Install Python 3 in the container before building
-          echo "CROSS_PRE_BUILD=apt-get update && apt-get install -y python3 python3-pip" >> $GITHUB_ENV
+          # Create a Dockerfile for cross-compilation
+          cat > Dockerfile.cross << 'EOF'
+          FROM rust:latest
 
-      - name: Build with cargo
+          # Install cross-compilation tools
+          RUN apt-get update && apt-get install -y \
+              gcc-aarch64-linux-gnu \
+              libxcb1-dev \
+              libxcb-render0-dev \
+              libxcb-shape0-dev \
+              libxcb-xfixes0-dev \
+              libx11-dev \
+              python3 \
+              python3-pip
+
+          # Set up cross-compilation environment
+          ENV CC_aarch64_unknown_linux_gnu=aarch64-linux-gnu-gcc
+          ENV CXX_aarch64_unknown_linux_gnu=aarch64-linux-gnu-g++
+          ENV AR_aarch64_unknown_linux_gnu=aarch64-linux-gnu-ar
+          ENV CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc
+
+          # Add the target
+          RUN rustup target add aarch64-unknown-linux-gnu
+
+          # Set the working directory
+          WORKDIR /build
+
+          # Copy the source code
+          COPY . .
+
+          # Build the project
+          RUN cargo build --release --target aarch64-unknown-linux-gnu
+
+          # The output will be in /build/target/aarch64-unknown-linux-gnu/release/cacheclip
+          EOF
+
+          # Build the Docker image
+          docker build -t cross-build -f Dockerfile.cross .
+
+          # Create a container and copy the binary
+          docker create --name cross-build-container cross-build
+          docker cp cross-build-container:/build/target/aarch64-unknown-linux-gnu/release/cacheclip ./target/aarch64-unknown-linux-gnu/release/
+          docker rm cross-build-container
+
+      - name: Build with cargo (non-cross)
+        if: matrix.cross == false
         uses: actions-rs/cargo@v1
         with:
           command: build
           args: --release --target ${{ matrix.target }}
-          use-cross: ${{ matrix.cross }}
 
       - name: Create archive (Linux/macOS)
         if: matrix.os != 'windows-latest'
